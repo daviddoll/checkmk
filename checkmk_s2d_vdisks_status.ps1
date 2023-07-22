@@ -1,5 +1,5 @@
  ### local check for Checkmk
-### Exits with status "0" if all physical disks are healthy and "1" if there is a problem with at least one physical disk
+### Exits with status "0" if all virtual disks are healthy and "1" if there is a problem with at least one vdisk
 
 ### Date of last change: 2023-07-16
 ### Version 0.1
