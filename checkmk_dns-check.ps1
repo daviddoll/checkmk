@@ -22,5 +22,6 @@ else
         $statusdescription = "There is something wrong with DNS!" 
     }
 
-$check_result = $status + " DNS Request Status (A-Record)" + " - " + $statusdescription 
+$check_result = $status + " DNS Request Status" + " - " + $statusdescription 
+
 Write-Host $check_result
