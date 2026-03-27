@@ -1,27 +1,50 @@
-﻿ ### local check for Checkmk
-### Performs DNS request to nameserver and the result can be validated
-### Exits with status "0" if everything works as expected and "1" if there is an unexpected result
+### local check for Checkmk
+### Performs DNS request to nameserver and validates response
+### Exits with status "0" for expected response and "2" on errors/unexpected results
+###
+### Date of last change: 2026-03-27
+### Version 0.2
 
-### Date of last change: 2025-11-24
-### Version 0.1
+param(
+    [string]$HostnameToBeChecked = "www.kame.net",
+    [string]$DnsServer = "8.8.8.8",
+    [string]$ExpectedResult = "210.155.141.200",
+    [string]$ServiceName = "DNS_Request_Status"
+)
 
-$hostname_to_be_checked = "www.kame.net"
-$dns_server = "8.8.8.8"
-$expected_result = "210.155.141.200"
+$status = 2
+$statusDescription = "Unknown DNS check state."
+$responseTimeMs = 0
 
-$dns_request =  Resolve-DnsName $hostname_to_be_checked -Server $dns_server
+try {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-if ($dns_request.IPAddress -eq $expected_result) 
-    {
-        $status = "0"
-        $statusdescription = "DNS works fine!!"
-    } 
-else 
-    {
-        $status = "1"
-        $statusdescription = "There is something wrong with DNS!" 
+    # DNS-only query against the configured resolver to avoid local hosts/DNS cache side effects.
+    $dnsRequest = Resolve-DnsName -Name $HostnameToBeChecked -Type A -Server $DnsServer -DnsOnly -QuickTimeout -ErrorAction Stop
+
+    $stopwatch.Stop()
+    $responseTimeMs = [math]::Round($stopwatch.Elapsed.TotalMilliseconds, 0)
+
+    $answerIps = @($dnsRequest | Where-Object { $_.IPAddress } | Select-Object -ExpandProperty IPAddress)
+
+    if ($answerIps.Count -eq 0) {
+        $status = 2
+        $statusDescription = "DNS query returned no A record for $HostnameToBeChecked on $DnsServer."
     }
+    elseif ($answerIps -contains $ExpectedResult) {
+        $status = 0
+        $statusDescription = "DNS works fine. $HostnameToBeChecked resolved to expected IP $ExpectedResult via $DnsServer."
+    }
+    else {
+        $status = 2
+        $statusDescription = "DNS returned unexpected A records: $($answerIps -join ', ') (expected: $ExpectedResult)."
+    }
+}
+catch {
+    $status = 2
+    $statusDescription = "DNS query failed for $HostnameToBeChecked on $DnsServer. Error: $($_.Exception.Message)"
+}
 
-$check_result = $status + " DNS Request Status" + " - " + $statusdescription 
-
-Write-Host $check_result
+$checkResult = "$status $ServiceName response_time_ms=$responseTimeMs;;;; - $statusDescription"
+Write-Host $checkResult
+exit $status

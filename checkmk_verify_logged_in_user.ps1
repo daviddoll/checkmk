@@ -1,21 +1,19 @@
-﻿### local check for Checkmk
-### Exits with status "1" if a specific user is logged in and "0" if that user is not logged in
+### local check for Checkmk
+### Exits with status "1" if any interactive user is logged in and "0" if none
 
-### Date of last change: 2026-03-23
-### Version 0.1
+### Date of last change: 2026-03-27
+### Version 0.2
 
-$listloggedinusers = get-wmiobject -class win32_computersystem | select-object -expand username
+$loggedInUser = Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty UserName
 
-if ($listloggedinusers -match "admin")
-{
+if (-not [string]::IsNullOrWhiteSpace($loggedInUser)) {
     $status = "1"
-    $statusdescription = "User is active!"
+    $statusdescription = "User is active: $loggedInUser"
 }
-        else
-{
+else {
     $status = "0"
-    $statusdescription = "User is NOT active!"
+    $statusdescription = "No interactive user logged in."
 }
 
 $check_result = $status + " State_of_User" + " - " + $statusdescription
-	Write-Host $check_result
+Write-Host $check_result
